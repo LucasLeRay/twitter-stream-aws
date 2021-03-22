@@ -1,0 +1,151 @@
+service: twitter-stream-aws
+
+frameworkVersion: '2'
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+  firehose-config:
+    deliveryStreamName: tweet-stream
+  es-config:
+    indexName: tweet
+    typeName: tweet-type
+    domainName: tweet-search
+
+provider:
+  name: aws
+  runtime: python3.8
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - 'comprehend:DetectSentiment'
+      Resource: '*'
+
+functions:
+  transformTweets:
+    handler: handler.transformTweets
+    timeout: 60
+
+resources:
+  Resources:
+    BackupBucket:
+      Type: AWS::S3::Bucket
+    KinesisFirehoseStream:
+      Type: AWS::KinesisFirehose::DeliveryStream
+      Properties:
+        DeliveryStreamName: ${self:custom.firehose-config.deliveryStreamName}
+        ElasticsearchDestinationConfiguration:
+          RoleARN:
+            Fn::GetAtt: [ StreamRole, Arn ]
+          DomainARN:
+            Fn::GetAtt: [ ElasticSearch, Arn ]
+          IndexName: ${self:custom.es-config.indexName}
+          TypeName: ${self:custom.es-config.typeName}
+          S3BackupMode: FailedDocumentsOnly
+          S3Configuration:
+            BucketARN:
+              Fn::GetAtt: [ BackupBucket, Arn ]
+            RoleARN:
+              Fn::GetAtt: [ StreamRole, Arn ]
+          ProcessingConfiguration:
+            Enabled: true
+            Processors:
+              - Parameters:
+                  - ParameterName: LambdaArn
+                    ParameterValue: !GetAtt TransformTweetsLambdaFunction.Arn
+                Type: Lambda 
+    ElasticSearch:
+      Type: "AWS::Elasticsearch::Domain"
+      Properties:
+        ElasticsearchVersion: "6.3"
+        DomainName: ${self:custom.es-config.domainName}
+        ElasticsearchClusterConfig:
+          DedicatedMasterEnabled: false
+          InstanceCount: "1"
+          ZoneAwarenessEnabled: false
+          InstanceType: "t2.small.elasticsearch"
+        EBSOptions:
+          EBSEnabled: true
+          Iops: 0
+          VolumeSize: 10
+          VolumeType: "gp2"
+        AccessPolicies:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                AWS: "*"
+              Action: "es:*"
+              Resource:
+                - arn:aws:es:us-east-1:*:domain/tweet-search/*
+
+        AdvancedOptions:
+          rest.action.multi.allow_explicit_index: "true"
+    StreamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: streamRole
+        AssumeRolePolicyDocument: 
+          Version: '2012-10-17'
+          Statement: 
+            - Effect: Allow
+              Principal:
+                Service:
+                  - "s3.amazonaws.com"
+                  - "firehose.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Policies:
+          - PolicyName: streamPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+              - Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:PutObject
+                Resource:
+                  - !GetAtt BackupBucket.Arn
+                  - Fn::Join:
+                    - ""
+                    - - !GetAtt BackupBucket.Arn
+                      - '/*'
+              - Effect: Allow
+                Action:
+                  - es:ESHttpGet
+                Resource:
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/_all/_settings
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/_cluster/stats
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/tweet/_mapping/tweet-type
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/_nodes
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/_nodes/*/stats
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/_stats
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/tweet/_stats
+              - Effect: Allow
+                Action:
+                  - es:DescribeElasticsearchDomain
+                  - es:DescribeElasticsearchDomains
+                  - es:DescribeElasticsearchDomainConfig
+                  - es:ESHttpPost
+                  - es:ESHttpPut
+                Resource:
+                  - arn:aws:es:us-east-1:*:domain/tweet-search
+                  - arn:aws:es:us-east-1:*:domain/tweet-search/*
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:GetFunctionConfiguration
+                Resource:
+                  - Fn::Join:
+                    - ""
+                    - - !GetAtt TransformTweetsLambdaFunction.Arn
+                      - ':$LATEST'
+                  - !GetAtt TransformTweetsLambdaFunction.Arn
+
+plugins:
+  - serverless-python-requirements
