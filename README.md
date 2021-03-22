@@ -20,7 +20,20 @@ You have access to a Kibana domain through this URL: `${elasticsearch-domain-end
   consumer_secret = os.getenv('TWITTER_CONSUMER_SECRET')
 ```
 
-4. deploy using `sls deploy` (you may need to deploy a first time commenting `ElasticSearch AccessPolicies`, since AWS may refuse it, then re-deploy with these lines).
+4. deploy using `sls deploy`.  
+You may need to deploy a first time without these lines in `serverless.yml`, since AWS refuses public access to ES domains for security reasons:
+```yaml
+# in serverless.yml
+73|  AccessPolicies:
+74|    Version: "2012-10-17"
+75|    Statement:
+76|      - Effect: "Allow"
+77|        Principal:
+78|          AWS: "*"
+79|        Action: "es:*"
+80|        Resource:
+81|          - arn:aws:es:us-east-1:*:domain/tweet-search/*
+```
 
 5. Launch `stream.py` with tweet filter as params:
 ```sh
