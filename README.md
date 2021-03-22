@@ -1,8 +1,13 @@
 # Twitter Stream AWS
 
+A serverless application to stream tweets into Elasticsearch and Kibana through AWS Kinesis Firehose. This stream uses a custom lambda function as a preprocessor to get the sentiment associated with the tweet (`NEUTRAL`, `POSITIVE`, `NEGATIVE` or `MIXED`) with AWS Comprehend.
+
+You have access to a Kibana domain through this URL: `${elasticsearch-domain-endpoint}/_plugin/kibana/`:
+
+
 ## Setup
 
-1. Create and setup an AWS account.
+1. Create and setup an AWS account and a Twitter Developer account.
 
 2. Install the [serverless framework](https://www.serverless.com).
 
