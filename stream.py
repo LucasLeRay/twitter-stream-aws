@@ -1,8 +1,5 @@
 import sys
 import os
-import base64
-import random
-import time
 import json
 from tweepy.streaming import StreamListener
 from tweepy import OAuthHandler

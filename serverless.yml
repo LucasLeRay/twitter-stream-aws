@@ -78,8 +78,7 @@ resources:
                 AWS: "*"
               Action: "es:*"
               Resource:
-                - arn:aws:es:us-east-1:*:domain/tweet-search/*
-
+                - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/*
         AdvancedOptions:
           rest.action.multi.allow_explicit_index: "true"
     StreamRole:
@@ -119,13 +118,13 @@ resources:
                 Action:
                   - es:ESHttpGet
                 Resource:
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/_all/_settings
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/_cluster/stats
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/tweet/_mapping/tweet-type
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/_nodes
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/_nodes/*/stats
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/_stats
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/tweet/_stats
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/_all/_settings
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/_cluster/stats
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/${self:custom.es-config.indexName}/_mapping/tweet-type
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/_nodes
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/_nodes/*/stats
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/_stats
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/${self:custom.es-config.indexName}/_stats
               - Effect: Allow
                 Action:
                   - es:DescribeElasticsearchDomain
@@ -134,8 +133,8 @@ resources:
                   - es:ESHttpPost
                   - es:ESHttpPut
                 Resource:
-                  - arn:aws:es:us-east-1:*:domain/tweet-search
-                  - arn:aws:es:us-east-1:*:domain/tweet-search/*
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}
+                  - arn:aws:es:us-east-1:*:domain/${self:custom.es-config.domainName}/*
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
